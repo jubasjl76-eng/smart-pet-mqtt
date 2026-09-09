@@ -63,7 +63,6 @@ export class MQTTClient {
         clean: false,
         reconnectPeriod: 5000,
         connectTimeout: 30000,
-        reconnectAttempts: this.maxReconnectAttempts,
       };
 
       if (this.config.username && this.config.password) {
@@ -139,7 +138,7 @@ export class MQTTClient {
     }
 
     const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    this.client.publish(topic, message, { qos, retained });
+    this.client.publish(topic, message, { qos, retain: retained });
     console.log(`[MQTT] Published to ${topic}:`, payload);
   }
 

@@ -195,3 +195,71 @@ Examples:
 | QoS 2 timeout | Retry with duplicate flag |
 | Invalid payload | Log error, skip processing |
 | Device offline | Publish last will message |
+
+---
+
+# Protocol v2 (adds device types + leaves; same shape)
+
+v2 keeps `kennel/{kennelId}/{deviceType}/{deviceId}/{leaf}` and generalises it so
+one scheme covers **breeding kennels (B2B) and pet-owner homes (B2C)** and every
+device. `kennelId` is just the tenant string (kennel slug or household id).
+
+`src/topics.ts` + `src/payloads.ts` are the machine-readable version of this section.
+
+## Device types
+
+`feeder | water | door | sensor | gps | camera | scale | hub`
+
+- `door`  — pen / run door: servo or maglock, with an access audit trail
+- `scale` — load-cell platform / bowl (HX711): weight readings, "eaten" vs "dispensed"
+- `hub`   — the low-cost home Pet Hub / kennel edge box running a trimmed gateway
+- `camera` — adds two-way audio signalling on the `audio` leaf
+
+## Leaves
+
+| leaf | dir | QoS | retained | payload |
+|---|---|---|---|---|
+| `status` | dev→ | 1 | **yes** | `{…,status:"online"|"offline"|"degraded", fw, rssi, uptimeS, …}` |
+| `command` | →dev | 2 | no | `{command, id, params}` |
+| `ack` | dev→ | 1 | no | `{ackId, command, result:"ok"|"error"|"rejected"|"queued", detail}` |
+| `event` | dev→ | 1 | no | `{event, data}` — `boot|fed|dispensed|jam|door_open|low_food|tamper|…` |
+| `telemetry` | dev→ | 1 | no | `{metrics:{…}}` rolling bundle |
+| `location` | dev→ | 1 | no | `{latitude,longitude,accuracy,altitude,speed,heading,battery,fix}` |
+| `presence` | dev→ | 1 | no | `{tagId, rssi, nearby:[{tagId,rssi}]}` — **multi-dog identification** |
+| `audio` | both | 1 | no | `{session, signal}` — `offer|answer|ice|play|stop|talk` |
+| `<metric>` | dev→ | 1 | no | `{value, unit}` — one of temperature/humidity/airquality/weight/tds/level/battery |
+
+Every payload carries `deviceId`, `kennelId`, `timestamp` (epoch ms; `0` in an LWT).
+
+## Command ids + ack
+
+Every `command` gets an `id`. The device replies on `…/ack` with `ackId` = that id
+and `result`. The backend correlates ack + the retained `status` change to close
+the loop (feed → ack `ok` → status `foodLevel` drop).
+
+## New commands
+
+| command | device | params |
+|---|---|---|
+| `feed` | feeder | `{amount}` |
+| `schedule_set` | feeder | `{schedules:[{id,time,amount,enabled}]}` |
+| `dispense` | water | `{seconds?, ml?}` |
+| `door` | door | `{action:"lock"|"unlock"|"open"|"close"|"noop", reason?, holdMs?}` |
+| `relay` | door/hub | `{relay, state:"on"|"off", forMs?}` — fans, heat lamps, lights |
+| `ota` | any | `{url, version, sha256?}` |
+| `restart` | any | — |
+| `set_interval` | gps | `{seconds}` |
+| `identify` | any | `{seconds?}` — blink LED / chirp to find a device |
+
+## Collar migration
+
+Old: `dogs/{deviceId}/location`, `dogs/{deviceId}/command`.
+New: `kennel/{kennelId}/gps/{deviceId}/location`, `…/gps/{deviceId}/command`.
+`parseTopic()` rejects the old form; `isLegacyTopic()` detects it for a shim.
+
+## Security (unchanged intent, restated)
+
+- Per-device credentials, username `device:{deviceId}` (never shared, minted on claim)
+- Broker ACL: a device may PUB only its own `…/{deviceId}/{status,event,ack,telemetry,location,presence}` and SUB only its own `…/{deviceId}/command`
+- `mqtts://` + client certs in production
+- `hub` devices get a wider ACL scoped to their kennel prefix
