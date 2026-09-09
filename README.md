@@ -13,24 +13,30 @@ to `main` (see `.github/workflows/release.yml` and `CHANGELOG.md`).
 
 ## Install
 
-Add a `.npmrc` in the consuming repo so the `@jubasjl76-eng` scope resolves to
-GitHub Packages:
+Consumed as a **git-tag dependency** (this repo is public; needs no registry
+auth). In the consumer's `package.json`:
 
-```
-@jubasjl76-eng:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-Then:
-
-```
-npm install @jubasjl76-eng/mqtt-contract
+```json
+"dependencies": {
+  "@jubasjl76-eng/mqtt-contract": "github:jubasjl76-eng/smart-pet-mqtt#mqtt-contract-v2.1.1"
+}
 ```
 
-In CI, `actions/setup-node` with `registry-url: https://npm.pkg.github.com` +
-`scope: '@jubasjl76-eng'` and `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`
-handles auth. Renovate raises the bump PRs; do not vendor a copy of this contract
-into a consumer repo.
+`npm ci` clones the tag and runs `prepare` (`tsc`) to build `dist/`. Import by
+the package name:
+
+```ts
+import { buildTopic } from '@jubasjl76-eng/mqtt-contract';
+```
+
+Renovate (`gitTags` datasource) raises the bump PRs when a new
+`mqtt-contract-v*` tag is cut. **Do not vendor a copy** of this contract into a
+consumer repo.
+
+> Also published to GitHub Packages by `release.yml`, but GitHub Packages npm
+> requires a token even for public packages plus a per-repo Actions-access
+> grant, so the git-tag dependency is the default consumption path. Switch to
+> the registry later if install time becomes a measured problem.
 
 ## Topic scheme (v2)
 
