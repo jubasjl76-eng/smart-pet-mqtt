@@ -38,6 +38,14 @@ consumer repo.
 > grant, so the git-tag dependency is the default consumption path. Switch to
 > the registry later if install time becomes a measured problem.
 
+## Contract spec
+
+`asyncapi.yaml` (AsyncAPI 3.1) is the machine-readable version of everything
+below — channels, QoS/retain, payload schemas. It mirrors `src/topics.ts` +
+`src/payloads.ts` and is validated in CI. Render it with
+`npx @asyncapi/cli generate fromTemplate asyncapi.yaml @asyncapi/html-template`.
+Phase 14 codegen (C++ structs for the SDK, TS types) reads it.
+
 ## Topic scheme (v2)
 
 ```

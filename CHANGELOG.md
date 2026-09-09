@@ -2,6 +2,14 @@
 
 All notable changes to `@jubasjl76-eng/mqtt-contract`.
 
+## 2.2.0 — 2026-09-10
+
+- **AsyncAPI 3.1 spec** (`asyncapi.yaml`) — the machine-readable MQTT contract
+  (Phase 14, A1). Channels for every protocol-v2 leaf (status, command, ack,
+  event, telemetry, metric, location, presence, audio) + payload schemas
+  mirroring `src/payloads.ts`. Validated in CI (`@asyncapi/parser`). Included in
+  the published package `files`.
+
 ## 2.1.1 — 2026-09-09
 
 - Add a `prepare` script (build `dist/` on install) so the package can be
