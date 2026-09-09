@@ -1,11 +1,36 @@
-# smart-pet-mqtt
+# @jubasjl76-eng/mqtt-contract
 
 The **protocol contract** for the Smart Pet device ecosystem plus a small
 TypeScript client. Import this in the backend, the edge gateway, and any Node
-service; the firmware SDK (`smart-pet-device-sdk`) mirrors the same scheme in C++.
+service; the firmware SDK (`smart-pet-device-sdk`) mirrors the same scheme in C++
+(from Phase 14, generated from an AsyncAPI spec in this repo).
 
 > This is not a broker deployment. Mosquitto/EMQX live in the compose files of the
 > services that need them.
+
+Repo: `smart-pet-mqtt`. Published to GitHub Packages on every version bump merged
+to `main` (see `.github/workflows/release.yml` and `CHANGELOG.md`).
+
+## Install
+
+Add a `.npmrc` in the consuming repo so the `@jubasjl76-eng` scope resolves to
+GitHub Packages:
+
+```
+@jubasjl76-eng:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+Then:
+
+```
+npm install @jubasjl76-eng/mqtt-contract
+```
+
+In CI, `actions/setup-node` with `registry-url: https://npm.pkg.github.com` +
+`scope: '@jubasjl76-eng'` and `NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`
+handles auth. Renovate raises the bump PRs; do not vendor a copy of this contract
+into a consumer repo.
 
 ## Topic scheme (v2)
 
@@ -46,7 +71,7 @@ Legacy `dogs/{id}/…` (collar) and `devices/{id}/…` are **not** part of v2 �
 ```ts
 import {
   buildTopic, deliveryFor, buildFeed, buildDoor, CommandRouter,
-} from 'smart-pet-mqtt';
+} from '@jubasjl76-eng/mqtt-contract';
 
 // backend → device
 const cmd = buildFeed('feeder-01', 'home', 40);

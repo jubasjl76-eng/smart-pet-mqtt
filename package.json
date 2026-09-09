@@ -1,17 +1,39 @@
 {
-  "name": "smart-pet-mqtt",
-  "version": "2.0.0",
-  "description": "Smart Pet MQTT protocol contract + TypeScript client library",
+  "name": "@jubasjl76-eng/mqtt-contract",
+  "version": "2.1.0",
+  "description": "Smart Pet MQTT protocol contract (topic scheme, typed payloads, command routing) + a small TypeScript client",
   "type": "module",
+  "license": "UNLICENSED",
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jubasjl76-eng/smart-pet-mqtt.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist", "docs"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": ["dist", "docs", "CHANGELOG.md"],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "mqtt": "^5.10.0",
