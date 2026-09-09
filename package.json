@@ -1,6 +1,6 @@
 {
   "name": "@jubasjl76-eng/mqtt-contract",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Smart Pet MQTT protocol contract (topic scheme, typed payloads, command routing) + a small TypeScript client",
   "type": "module",
   "license": "UNLICENSED",
@@ -23,7 +23,11 @@
     "./package.json": "./package.json"
   },
   "sideEffects": false,
-  "files": ["dist", "docs", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "docs",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -33,7 +37,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepack": "npm run build"
+    "prepare": "npm run build"
   },
   "dependencies": {
     "mqtt": "^5.10.0",
