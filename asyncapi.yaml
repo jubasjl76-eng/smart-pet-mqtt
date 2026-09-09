@@ -1,0 +1,271 @@
+asyncapi: 3.1.0
+info:
+  title: Smart Pet MQTT contract
+  version: 2.2.0
+  description: >
+    Protocol v2. Every device topic is `kennel/{kennelId}/{deviceType}/{deviceId}/{leaf}`.
+    A backend subscribes `kennel/{kennelId}/#` and gets everything. Source of
+    truth for topic strings, QoS/retain policy, and payload shapes is
+    `src/topics.ts` + `src/payloads.ts`; this file mirrors them and is the
+    machine-readable contract (Phase 14, A1).
+  license:
+    name: UNLICENSED
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:1883
+    protocol: mqtt
+    description: Mosquitto on the LAN / compose stack (anonymous).
+  cloud:
+    host: mqtt.smartpet.example:8883
+    protocol: secure-mqtt
+    description: EMQV cluster behind the NLB. Per-device username/password, TLS.
+
+components:
+  parameters:
+    kennelId:
+      description: Tenant string — a breeding-kennel slug ("home") or a household id.
+    deviceType:
+      description: One of feeder | water | door | sensor | gps | camera | scale | hub.
+    deviceId:
+      description: Stable device id, minted at claim.
+
+  schemas:
+    envelope:
+      type: object
+      required: [deviceId, kennelId, timestamp]
+      properties:
+        deviceId: { type: string }
+        kennelId: { type: string }
+        timestamp:
+          type: integer
+          description: epoch ms (device wall-clock after NTP; 0 in an LWT)
+    status:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [online, offline, degraded] }
+            fw: { type: string }
+            rssi: { type: integer }
+            uptimeS: { type: integer }
+          additionalProperties: true
+    command:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [command]
+          properties:
+            command:
+              type: string
+              enum: [feed, dispense, schedule_set, door, relay, ota, restart, set_interval, identify, get_location]
+            id: { type: string, description: correlation id for the ack }
+            params: { type: object, additionalProperties: true }
+    ack:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [ackId, command, result]
+          properties:
+            ackId: { type: string }
+            command: { type: string }
+            result: { type: string, enum: [ok, error, rejected, queued] }
+            detail: { type: string }
+    event:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [event]
+          properties:
+            event:
+              type: string
+              description: 'boot | fed | dispensed | jam | door_open | door_closed | low_food | low_water | tamper | button | ota_applied | offline_recovered | crash | …'
+            data: { type: object, additionalProperties: true }
+    telemetry:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [metrics]
+          properties:
+            metrics:
+              type: object
+              additionalProperties: { type: number }
+    metric:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [value]
+          properties:
+            value: { type: number }
+            unit: { type: string }
+    location:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [latitude, longitude]
+          properties:
+            latitude: { type: number }
+            longitude: { type: number }
+            accuracy: { type: number }
+            altitude: { type: number }
+            speed: { type: number }
+            heading: { type: number }
+            battery: { type: number }
+            fix: { type: boolean }
+    presence:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [tagId]
+          properties:
+            tagId: { type: [string, 'null'] }
+            rssi: { type: integer }
+            nearby:
+              type: array
+              items:
+                type: object
+                properties:
+                  tagId: { type: string }
+                  rssi: { type: integer }
+    audio:
+      allOf:
+        - $ref: '#/components/schemas/envelope'
+        - type: object
+          required: [session, signal]
+          properties:
+            session: { type: string }
+            signal:
+              type: object
+              required: [kind]
+              properties:
+                kind: { type: string, enum: [offer, answer, ice, play, stop, talk] }
+              additionalProperties: true
+
+  messages:
+    status: { name: status, contentType: application/json, payload: { $ref: '#/components/schemas/status' } }
+    command: { name: command, contentType: application/json, payload: { $ref: '#/components/schemas/command' } }
+    ack: { name: ack, contentType: application/json, payload: { $ref: '#/components/schemas/ack' } }
+    event: { name: event, contentType: application/json, payload: { $ref: '#/components/schemas/event' } }
+    telemetry: { name: telemetry, contentType: application/json, payload: { $ref: '#/components/schemas/telemetry' } }
+    metric: { name: metric, contentType: application/json, payload: { $ref: '#/components/schemas/metric' } }
+    location: { name: location, contentType: application/json, payload: { $ref: '#/components/schemas/location' } }
+    presence: { name: presence, contentType: application/json, payload: { $ref: '#/components/schemas/presence' } }
+    audio: { name: audio, contentType: application/json, payload: { $ref: '#/components/schemas/audio' } }
+
+channels:
+  status:
+    address: kennel/{kennelId}/{deviceType}/{deviceId}/status
+    description: Retained device state (QoS 1, retain). Also the LWT topic (`{timestamp:0,status:"offline"}`).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceType: { $ref: '#/components/parameters/deviceType' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      status: { $ref: '#/components/messages/status' }
+  command:
+    address: kennel/{kennelId}/{deviceType}/{deviceId}/command
+    description: Backend → device instructions (QoS 2, not retained).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceType: { $ref: '#/components/parameters/deviceType' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      command: { $ref: '#/components/messages/command' }
+  ack:
+    address: kennel/{kennelId}/{deviceType}/{deviceId}/ack
+    description: Device → backend command acknowledgement (QoS 1).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceType: { $ref: '#/components/parameters/deviceType' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      ack: { $ref: '#/components/messages/ack' }
+  event:
+    address: kennel/{kennelId}/{deviceType}/{deviceId}/event
+    description: Device → backend discrete events (QoS 1).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceType: { $ref: '#/components/parameters/deviceType' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      event: { $ref: '#/components/messages/event' }
+  telemetry:
+    address: kennel/{kennelId}/{deviceType}/{deviceId}/telemetry
+    description: Rolling metrics bundle (QoS 1).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceType: { $ref: '#/components/parameters/deviceType' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      telemetry: { $ref: '#/components/messages/telemetry' }
+  metric:
+    address: kennel/{kennelId}/{deviceType}/{deviceId}/{metric}
+    description: A single sensor metric — temperature | humidity | airquality | weight | tds | level | battery (QoS 1).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceType: { $ref: '#/components/parameters/deviceType' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+      metric:
+        description: temperature | humidity | airquality | weight | tds | level | battery
+    messages:
+      metric: { $ref: '#/components/messages/metric' }
+  location:
+    address: kennel/{kennelId}/gps/{deviceId}/location
+    description: GPS fixes (QoS 1).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      location: { $ref: '#/components/messages/location' }
+  presence:
+    address: kennel/{kennelId}/{deviceType}/{deviceId}/presence
+    description: BLE tag sightings for multi-dog identification at a shared device (QoS 1).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceType: { $ref: '#/components/parameters/deviceType' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      presence: { $ref: '#/components/messages/presence' }
+  audio:
+    address: kennel/{kennelId}/camera/{deviceId}/audio
+    description: Two-way audio signalling — WebRTC offer/answer/ice + talk/play/stop (QoS 1).
+    parameters:
+      kennelId: { $ref: '#/components/parameters/kennelId' }
+      deviceId: { $ref: '#/components/parameters/deviceId' }
+    messages:
+      audio: { $ref: '#/components/messages/audio' }
+
+operations:
+  publishCommand:
+    action: send
+    channel: { $ref: '#/channels/command' }
+    summary: Backend publishes a command to a device.
+  receiveStatus:
+    action: receive
+    channel: { $ref: '#/channels/status' }
+    summary: Backend receives retained device state (+ LWT).
+  receiveAck:
+    action: receive
+    channel: { $ref: '#/channels/ack' }
+  receiveEvent:
+    action: receive
+    channel: { $ref: '#/channels/event' }
+  receiveTelemetry:
+    action: receive
+    channel: { $ref: '#/channels/telemetry' }
+  receiveMetric:
+    action: receive
+    channel: { $ref: '#/channels/metric' }
+  receiveLocation:
+    action: receive
+    channel: { $ref: '#/channels/location' }
+  receivePresence:
+    action: receive
+    channel: { $ref: '#/channels/presence' }
+  exchangeAudio:
+    action: send
+    channel: { $ref: '#/channels/audio' }
+    summary: Both the app-relay and the camera publish + subscribe here.
