@@ -2,6 +2,15 @@
 
 All notable changes to `@jubasjl76-eng/mqtt-contract`.
 
+## 2.3.0 — 2026-09-10
+
+- **W3C Trace Context on the envelope** (`traceparent` / `tracestate`, both
+  optional) — hardening Phase 16. Set by the message originator so a
+  command → ack/status/event round trip stays on one distributed trace;
+  devices echo the command's `traceparent` back on the matching ack.
+  `copyTrace(dst, src)` helper + `TraceCarrier` type. AsyncAPI `envelope`
+  schema updated.
+
 ## 2.2.0 — 2026-09-10
 
 - **AsyncAPI 3.1 spec** (`asyncapi.yaml`) — the machine-readable MQTT contract

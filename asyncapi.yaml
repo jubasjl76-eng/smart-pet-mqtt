@@ -1,7 +1,7 @@
 asyncapi: 3.1.0
 info:
   title: Smart Pet MQTT contract
-  version: 2.2.0
+  version: 2.3.0
   description: >
     Protocol v2. Every device topic is `kennel/{kennelId}/{deviceType}/{deviceId}/{leaf}`.
     A backend subscribes `kennel/{kennelId}/#` and gets everything. Source of
@@ -42,6 +42,13 @@ components:
         timestamp:
           type: integer
           description: epoch ms (device wall-clock after NTP; 0 in an LWT)
+        traceparent:
+          type: string
+          description: >-
+            W3C Trace Context. Set by the message originator so a command →
+            ack/status/event round trip stays on one distributed trace. Devices
+            echo the command's value back on the matching ack. Optional.
+        tracestate: { type: string }
     status:
       allOf:
         - $ref: '#/components/schemas/envelope'

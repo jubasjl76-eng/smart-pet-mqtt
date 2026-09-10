@@ -6,6 +6,7 @@ import {
 import {
   buildFeed, buildDoor, buildOta, buildLwt, buildStatus, buildAck, buildPresence,
   buildAudio, buildLocation, parseCommand, parseStatus, isEnvelope, toMs, commandId,
+  copyTrace,
 } from './payloads.js';
 import { CommandRouter } from './dispatch.js';
 
@@ -70,6 +71,17 @@ describe('payloads', () => {
     expect(buildAudio('cam-1', 'home', 'sess-1', { kind: 'talk', state: 'start' }).signal).toEqual({ kind: 'talk', state: 'start' });
     const loc = buildLocation('c1', 'home', { latitude: 1, longitude: 2, battery: 80 });
     expect(loc).toMatchObject({ latitude: 1, longitude: 2, battery: 80 });
+  });
+
+  it('copyTrace moves traceparent/tracestate and ignores absent fields', () => {
+    const dst: Record<string, unknown> = { ackId: 'x' };
+    copyTrace(dst, { traceparent: '00-abc-def-01', tracestate: 'a=1' });
+    expect(dst).toMatchObject({ traceparent: '00-abc-def-01', tracestate: 'a=1' });
+
+    const bare: Record<string, unknown> = {};
+    copyTrace(bare, undefined);
+    copyTrace(bare, {});
+    expect(bare).toEqual({});
   });
 
   it('lwt is timestamp 0 offline with no extra fields', () => {
