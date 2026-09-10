@@ -11,6 +11,24 @@ export interface Envelope {
   kennelId: string;
   /** epoch milliseconds (device wall-clock after NTP sync; 0 in an LWT) */
   timestamp: number;
+  /**
+   * W3C Trace Context (hardening Phase 16). Set by whoever originates the
+   * message so a command → ack/status/event round trip stays on one
+   * distributed trace. Devices don't create spans — they just echo the
+   * command's `traceparent` back on the matching ack. Optional everywhere.
+   */
+  traceparent?: string;
+  tracestate?: string;
+}
+
+/** The two Trace Context fields, as a plain carrier for propagation.inject/extract. */
+export type TraceCarrier = { traceparent?: string; tracestate?: string };
+
+/** Copy `traceparent` / `tracestate` from `src` onto `dst` (in place). Returns `dst`. */
+export function copyTrace<T extends TraceCarrier>(dst: T, src: TraceCarrier | undefined): T {
+  if (src?.traceparent) dst.traceparent = src.traceparent;
+  if (src?.tracestate) dst.tracestate = src.tracestate;
+  return dst;
 }
 
 // ── status / lwt ────────────────────────────────────────────────────────────
@@ -121,6 +139,8 @@ export interface AckPayload extends Envelope {
 export function buildAck(args: {
   deviceId: string; kennelId: string; ackId: string; command: string;
   result: AckPayload['result']; detail?: string;
+  /** echo the acknowledged command's traceparent so the round trip links */
+  traceparent?: string; tracestate?: string;
 }): AckPayload {
   return { ...args, timestamp: Date.now() };
 }
